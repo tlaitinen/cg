@@ -29,12 +29,18 @@ import Network.Wai.Middleware.RequestLogger (Destination (Logger),
                                              mkRequestLogger, outputFormat)
 import System.Log.FastLogger                (defaultBufSize, newStdoutLoggerSet,
                                              toLogStr)
+import Yesod.Auth.HashDB (setPassword)
 
 -- Import all relevant handler modules here.
 -- Don't forget to add new modules to your cabal file!
 import Handler.Common
 import Handler.Home
-import Handler.Comment
+import Handler.DB
+import Handler.File
+import Handler.Register
+import Handler.ResetPassword
+import Handler.SetUserPassword
+import Handler.UploadFiles
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -73,10 +79,31 @@ makeFoundation appSettings = do
         (pgPoolSize $ appDatabaseConf appSettings)
 
     -- Perform database migration using our application's logging settings.
-    runLoggingT (runSqlPool (runMigration migrateAll) pool) logFunc
+    -- runLoggingT (runSqlPool (runMigration migrateAll) pool) logFunc
+    runLoggingT (runSqlPool (runMigration migrateDB >> ensureAdminUser appSettings) pool) logFunc
+
 
     -- Return the foundation
     return $ mkFoundation pool
+    where
+        ensureAdminUser s = do
+            ugs <- selectList [ UserGroupName ==. "Default" ] []
+            defaultUgId <- case ugs of
+                (x:_) -> return $ entityKey x
+                _ -> do
+                    now <- liftIO getCurrentTime
+                    insert $ newUserGroup "Default"
+            users <- selectList [ UserName ==. (appAdminUser s) ] []
+            when (null users) $ void $ do
+                u <- liftIO $ setPassword (appAdminPassword s) $ newUser defaultUgId (appAdminUser s)
+                uId <- insert u
+                insert $ newUserGroupItem defaultUgId uId UserGroupModeReadWrite
+                insert $ (newUserGroupContent defaultUgId) {
+                        userGroupContentUserContentId = Just uId
+                    }
+                insert $ (newUserGroupContent defaultUgId) {
+                        userGroupContentUserGroupContentId = Just defaultUgId
+                    }
 
 -- | Convert our foundation to a WAI Application by calling @toWaiAppPlain@ and
 -- applying some additional middlewares.

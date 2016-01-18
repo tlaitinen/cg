@@ -30,8 +30,13 @@ library
         Settings
         Settings.StaticFiles
         Handler.Common
+        Handler.File
         Handler.Home
-        Handler.Comment
+        Handler.Register
+        Handler.ResetPassword
+        Handler.UploadFiles
+        Handler.SetUserPassword
+        Handler.Utils
         Handler.DB.Enums
         Handler.DB.Esqueleto
         Handler.DB.Internal
@@ -79,6 +84,7 @@ library
         aeson >=0.6 && <0.11,
         conduit >=1.0 && <2.0,
         monad-logger >=0.3 && <0.4,
+        unix,
         fast-logger >=2.2 && <2.5,
         wai-logger >=2.2 && <2.3,
         file-embed -any,
@@ -89,17 +95,23 @@ library
         time -any,
         case-insensitive -any,
         wai -any,
-        transformers,
-        resourcet,
-        exceptions,
-        yesod-persistent,
-        attoparsec,
-        conduit-extra,
-        http-types,
-        blaze-builder,
-        path-pieces,
-        esqueleto,
-        random
+        transformers -any,
+        resourcet -any,
+        exceptions -any,
+        yesod-persistent -any,
+        attoparsec -any,
+        conduit-extra -any,
+        http-types -any,
+        blaze-builder -any,
+        path-pieces -any,
+        esqueleto -any,
+        random -any,
+        yesod-auth-hashdb,
+        process,
+        temporary,
+        filepath,
+        mime-mail,
+        smtp-mail
 
     extensions: TemplateHaskell QuasiQuotes OverloadedStrings
                 NoImplicitPrelude MultiParamTypeClasses TypeFamilies GADTs

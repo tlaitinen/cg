@@ -871,8 +871,10 @@ userGroupContentContentIdExpr2FromString "File" e op e2 = Just $ defaultFilterOp
 userGroupContentContentIdExpr2FromString _ _ _ _ = Nothing
 
 
--- instance ToJSON Day where
---    toJSON = toJSON . show
+#ifdef ToJSON_Day
+instance ToJSON Day where
+    toJSON = toJSON . show
+#endif
 
 #ifdef FromJSON_Day
 instance FromJSON Day where

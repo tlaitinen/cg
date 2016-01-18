@@ -27,7 +27,7 @@ data AppSettings = AppSettings
     -- ^ Directory from which to serve static files.
     , appDatabaseConf           :: PostgresConf
     -- ^ Configuration settings for accessing the database.
-    , appRoot                   :: Maybe Text
+    , appRoot                   ::Text
     -- ^ Base for all generated URLs. If @Nothing@, determined
     -- from the request headers.
     , appHost                   :: HostPreference
@@ -54,6 +54,13 @@ data AppSettings = AppSettings
     -- ^ Copyright text to appear in the footer of the page
     , appAnalytics              :: Maybe Text
     -- ^ Google Analytics code
+    , appUploadDir              :: FilePath
+    , appAdminUser              :: Text
+    , appAdminPassword          :: Text
+    , appSmtpAddress            :: String
+    , appSenderEmail            :: Text
+    
+
     }
 
 instance FromJSON AppSettings where
@@ -66,7 +73,7 @@ instance FromJSON AppSettings where
 #endif
         appStaticDir              <- o .: "static-dir"
         appDatabaseConf           <- o .: "database"
-        appRoot                   <- o .:? "approot"
+        appRoot                   <- o .: "approot"
         appHost                   <- fromString <$> o .: "host"
         appPort                   <- o .: "port"
         appIpFromHeader           <- o .: "ip-from-header"
@@ -79,6 +86,13 @@ instance FromJSON AppSettings where
 
         appCopyright              <- o .: "copyright"
         appAnalytics              <- o .:? "analytics"
+
+        appUploadDir              <- fromString <$> o .: "upload-dir"
+        appAdminUser              <- o .: "admin-user"
+        appAdminPassword          <- o .: "admin-password"
+        appSmtpAddress            <- o .: "smtp-address"
+        appSenderEmail            <- o .: "sender-email"
+
 
         return AppSettings {..}
 

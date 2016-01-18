@@ -1,0 +1,6 @@
+Tervetuloa käyttämään Paprut.fi-palvelua
+
+Kiitos rekisteröitymisestä. Voit aloittaa kuukauden tutustumisjakson asettamalla uuden salasanan osoitteessa ~{url} .
+
+Ystävällisin terveisin,
+Paprut.fi-ylläpito

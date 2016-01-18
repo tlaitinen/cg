@@ -1,9 +1,11 @@
 /static StaticR Static appStatic
 /auth   AuthR   Auth   getAuth
+/db DBR DB getDB
+/upload-files UploadFilesR POST
+/file/#FileId FileR GET
+/set-user-password/#UserId SetUserPasswordR POST
+/set-user-password/#UserId/#Text SetUserPasswordTokenR GET POST
+/reset-password ResetPasswordR POST
+/register RegisterR POST
+/ HomeR GET
 
-/favicon.ico FaviconR GET
-/robots.txt RobotsR GET
-
-/ HomeR GET POST
-
-/comments CommentR POST
