@@ -1,0 +1,305 @@
+import "Named.ydsl";
+import "Versioned.ydsl";
+import Handler.Utils (hasReadPerm, hasReadPermMaybe, hasWritePerm, prepareNewUser);
+
+
+class Restricted {
+
+}
+
+entity UserGroupContent {
+    instance of Deletable;
+
+    userGroupId UserGroupId;
+    contentId Maybe RestrictedId;
+}
+
+entity UserGroup {
+    instance of Named, Versioned, Deletable, Restricted;
+    createPeriods Int32 default 1;
+    email Text default "";
+    organization Maybe Text;
+
+    current Checkmark default CheckmarkActive;
+    unique UserGroup current, name;
+}
+entity UserGroupItem {
+    instance of Deletable;
+    userGroupId UserGroupId;
+    userId UserId;
+    mode UserGroupMode;
+}
+
+entity User {
+    instance of Named, Versioned, Deletable, Restricted;
+    firstName Text default "";
+    lastName Text default "";
+    organization Text default "";
+    admin Bool default False;
+
+    email Text default "";
+    password Text default "" internal;
+    salt Text default "" internal;
+    
+    passwordResetToken      Maybe Text internal;
+    passwordResetValidUntil Maybe UTCTime internal;
+
+    contractStartDate       Maybe Day;
+    contractEndDate         Maybe Day;
+
+    defaultUserGroupId UserGroupId;
+
+    timeZone Text default "Europe/Helsinki";
+
+    current Checkmark default CheckmarkActive;
+
+    config Text default "{}";
+    strictEmailCheck Bool default False;
+
+    unique User current, name;
+    unique UserEmail current, email;
+    deriving Typeable;
+}
+
+route /usergroupcontents {
+    get {
+        select ugc.id, ug.name as userGroupName from UserGroupContent as ugc
+            inner join UserGroup as ug on ugc.userGroupId = ug.id
+            where hasReadPerm $auth.id ugc.userGroupId ;
+        if param "hideDeleted" = _ then
+            where ugc.deletedVersionId is Nothing;
+        default-filter-sort;
+    }
+}
+
+route /usergroups {
+    get {
+        select ug.id, ug.* from UserGroup as ug
+            where hasReadPerm $auth.id ug.id
+            order by ug.name asc;
+        default-filter-sort;
+        if param "query" = $$ then
+            where ug.name ilike "%" || $$ || "%";
+        if param "musicPieceIdList" = $$ then
+            where ug.id in 
+                (select ugi.userGroupId from UserGroupItem as ugi
+                 where (ugi.userId in $$) and (ugi.deletedVersionId is Nothing));
+
+        if param "hideDeleted" = _ then
+            where ug.deletedVersionId is Nothing;
+      }
+    post {
+        ugId <- insert UserGroup from {
+            name             = $request.name,
+            createPeriods    = $request.createPeriods,
+            email            = $request.email,
+            deletedVersionId = Nothing,
+            activeId         = Nothing,
+            activeStartTime  = now(),
+            activeEndTime    = Nothing
+        };
+        insert UserGroupContent from {
+            userGroupId = $auth.defaultUserGroupId,
+            userGroupContentId = ugId                        
+        };
+        return {
+            'id' = ugId
+        };
+    }
+}
+route /usergroups/#UserGroupId {
+    put {
+        require UserGroup as ug where ug.id = $1 and 
+            hasWritePerm $auth.id ug.id;
+
+        versionId <- insert Version from {
+            time = now(),
+            userId = $auth.id
+        };
+        ug <- get UserGroup identified by $1;
+        insert UserGroup from ug {
+            activeId = $1,
+            activeEndTime = now(),
+            current = CheckmarkInactive,
+            deletedVersionId = versionId
+        };
+        update UserGroup identified by $1 with {
+            name = $request.name,
+            email = $request.email,
+            createPeriods = $request.createPeriods,
+            activeStartTime = now()
+        };
+    }
+    delete {
+        require UserGroup as ug where ug.id = $1 and 
+            hasWritePerm $auth.id ug.id;
+
+        versionId <- insert Version from {
+            time = now(),
+            userId = $auth.id
+        };
+        update UserGroup identified by $1 with {
+            activeEndTime = now(),
+            deletedVersionId = versionId,
+            current = CheckmarkInactive
+        };
+    }
+    
+}
+enum UserGroupMode = ReadOnly | ReadWrite;
+
+route /usergroupitems {
+    get {
+        select ugi.id, u.id as userId, u.name as userName,
+               ug.id as userGroupId, ug.name as userGroupName,
+              ugi.mode from UserGroupItem as ugi
+            inner join UserGroup as ug on ugi.userGroupId = ug.id
+            inner join User as u on ugi.userId = u.id
+            where ugi.deletedVersionId is Nothing
+                and hasReadPerm $auth.id ug.id
+            order by u.name asc;
+        default-filter-sort;
+        if param "query" = $$ then
+            where u.name ilike "%" || $$ || "%";
+        if param "userGroupId" = $$ then
+            where ugi.userGroupId = $$;
+        if param "userIdList" = $$ then
+            where ugi.userId in $$;
+    }
+    post {
+        require UserGroup as ug
+            where ug.id = $request.userGroupId
+                and hasWritePerm $auth.id ug.id ;
+        delete from UserGroupItem as ugi 
+            where ugi.userGroupId = $request.userGroupId
+              and ugi.userId = $request.userId;
+        insert UserGroupItem from {
+            userGroupId = $request.userGroupId,
+            userId = $request.userId,
+            mode   = $request.mode,
+            deletedVersionId = Nothing
+        };
+    }
+}
+
+route /usergroupitems/#UserGroupItemId {
+
+    delete {
+        require UserGroupItem as ugi
+            where ugi.id = $1 
+                and hasWritePerm $auth.id ugi.userGroupId;
+
+        versionId <- insert Version from {
+            userId = $auth.id,
+            time = now()
+        };
+        update UserGroupItem identified by $1 with {
+            deletedVersionId = versionId
+        };
+    }
+}
+
+route /users {
+    get {
+        select u.id, 
+               u.name, 
+               u.firstName, 
+               u.lastName,
+               u.organization,
+               u.timeZone,
+               u.defaultUserGroupId,
+               u.email,
+               u.strictEmailCheck
+               from User as u
+               where hasReadPerm $auth.id u.id
+            order by u.name asc;
+        default-filter-sort;
+
+        if param "query" = $$ then
+            where u.name ilike "%" || $$ || "%";
+
+        if param "userGroupId" = $$ then
+            inner join UserGroupItem as ugi on u.id = ugi.userId
+            where ugi.userGroupId = $$;    
+        if param "hideDeleted" = _ then
+            where u.deletedVersionId is Nothing;
+    }
+    post {
+        require User as u where u.admin = True and u.id = $auth.id;
+
+        userId <- insert User from {
+            name               = $request.name,
+            firstName          = $request.firstName,
+            lastName           = $request.lastName,
+            organization       = $request.organization,
+            email              = $request.email,
+            defaultUserGroupId = $request.defaultUserGroupId,
+            timeZone           = $request.timeZone,
+            strictEmailCheck   = $request.strictEmailCheck,
+            activeStartTime    = now()
+        };
+        prepareNewUser $auth.id userId;
+        insert UserGroupContent from {
+            userGroupId = $auth.defaultUserGroupId,
+            userContentId = userId                        
+        };
+        return {
+            'id' = userId
+        };
+    }
+
+}
+
+route /users/#UserId {
+    get {
+
+        select u.id,
+               u.* 
+               from User as u where u.id = $1
+               and hasReadPerm $auth.id u.id;
+    }
+    delete {
+        require User as u where u.id = $1
+            and u.id != $auth.id
+            and hasWritePerm $auth.id u.id;
+        versionId <- insert Version from {
+            time = now(),
+            userId = $auth.id     
+        };
+        update User identified by $1 with {
+            deletedVersionId = versionId,
+            current = CheckmarkInactive,
+            activeEndTime = now()
+        };
+    }
+    put {
+        require User as u where u.id = $1
+            and hasWritePerm $auth.id u.id;
+        versionId <- insert Version from {
+            time = now(),
+            userId = $auth.id
+        };
+        u <- get User identified by $1;
+        insert User from u {
+            activeId = $1,
+            activeEndTime = now(),
+            current = CheckmarkInactive,
+            deletedVersionId = versionId
+        };
+        
+        update User identified by $1 with {
+            name                  = $request.name,
+            firstName             = $request.firstName,
+            lastName              = $request.lastName,
+            organization          = $request.organization,
+            email                 = $request.email,
+            defaultUserGroupId    = $request.defaultUserGroupId,
+            timeZone              = $request.timeZone,
+            strictEmailCheck      = $request.strictEmailCheck,
+            activeStartTime       = now()
+        };
+    }
+    
+}
+
+

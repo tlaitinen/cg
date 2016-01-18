@@ -1,0 +1,62 @@
+import "Named.ydsl";
+import "HasInsertInfo.ydsl";
+entity File {
+    instance of Named, Versioned, Restricted, Deletable, HasInsertInfo;
+    contentType Text;
+    size    Int32;
+}
+
+route /files {
+    get {
+        select f.id, f.* from File as f
+            where hasReadPerm $auth.id f.id
+            order by f.name asc;
+        default-filter-sort;
+        if param "query" = $$ then
+            where f.name ilike "%" || $$ || "%";
+        if param "contentType" = $$ then
+            where f.contentType = $$;
+        if param "contentTypeList" = $$ then
+            where f.contentType in $$;
+        if param "hideDeleted" = _ then
+            where f.deletedVersionId is Nothing;
+    }
+}
+route /files/#FileId {
+    get {
+        select f.id, f.* from File as f where f.id = $1
+            and hasReadPerm $auth.id f.id;
+    }
+    put {
+        require File as f where f.id = $1
+            and hasWritePerm $auth.id f.id;
+        versionId <- insert Version from {
+            time = now(),
+            userId = $auth.id
+        };
+        f <- get File identified by $1;
+        insert File from f {
+            activeId = $1,
+            activeEndTime = now(),
+            deletedVersionId = versionId
+        };
+        update File identified by $1 with {
+            name = $request.name,
+            activeStartTime = now()
+        };
+    }
+    delete {
+        require File as f where f.id = $1
+            and hasWritePerm $auth.id f.id;
+        versionId <- insert Version from {
+            time = now(),
+            userId = $auth.id     
+        };
+        update File identified by $1 with {
+            deletedVersionId = versionId,
+            activeEndTime = now()
+        };
+    }
+
+}
+

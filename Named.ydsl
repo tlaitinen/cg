@@ -1,0 +1,5 @@
+import Handler.Utils (nonEmpty);
+class Named {
+    name Text check nonEmpty;
+}
+

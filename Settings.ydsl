@@ -1,0 +1,30 @@
+route /settings {
+    post {
+        versionId <- insert Version from {
+            time = now(),
+            userId = $auth.id
+        };
+        ug <- get UserGroup identified by $auth.defaultUserGroupId;
+        u <- get User identified by $auth.id;
+        insert UserGroup from ug {
+            activeId = $auth.defaultUserGroupId,
+            activeEndTime = now(),
+            current = CheckmarkInactive,
+            deletedVersionId = versionId
+        };
+        insert User from u {
+            activeId = $auth.id,
+            activeEndTime = now(),
+            current = CheckmarkInactive,
+            deletedVersionId = versionId
+        };
+        update UserGroup identified by $auth.defaultUserGroupId with {
+            organization = $request.organization,
+            email        = $request.deliveryEmail
+        };
+        update User identified by $auth.id with {
+            firstName    = $request.firstName,
+            lastName     = $request.lastName
+        };
+    }
+}

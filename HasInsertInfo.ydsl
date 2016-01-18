@@ -1,0 +1,6 @@
+import "UserGroup.ydsl";
+class HasInsertInfo {
+    insertionTime UTCTime;
+    insertedByUserId Maybe UserId;
+}
+

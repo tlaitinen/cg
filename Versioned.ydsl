@@ -1,0 +1,26 @@
+import "UserGroup.ydsl";
+
+class Versioned {
+    activeId        Maybe ClassInstanceId internal;
+    activeStartTime Maybe UTCTime internal;
+    activeEndTime   Maybe UTCTime internal;
+
+}
+class Deletable {
+    deletedVersionId Maybe VersionId internal;
+}
+
+entity Version {
+    time UTCTime;
+    userId UserId;
+}
+
+route /versions {
+    get {
+        select v.id, v.* from Version as v
+            where v.userId = $auth.id
+            order by v.time desc;
+        default-filter-sort;
+    }
+}
+
