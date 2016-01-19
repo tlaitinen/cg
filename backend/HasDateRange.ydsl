@@ -1,0 +1,4 @@
+class HasDateRange {
+    startDay Maybe Day;
+    endDay   Maybe Day;
+}

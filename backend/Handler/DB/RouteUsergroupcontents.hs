@@ -111,9 +111,6 @@ getUsergroupcontentsR  = lift $ runDB $ do
                 "id" -> case (FS.f_value fjm >>= PP.fromPathPiece)  of 
                     (Just v') -> where_ $ defaultFilterOp (FS.f_negate fjm) (FS.f_comparison fjm) (ugc  ^.  UserGroupContentId) (val v')
                     _        -> return ()
-                "createPeriods" -> case (FS.f_value fjm >>= PP.fromPathPiece) of 
-                    (Just v') -> where_ $ defaultFilterOp (FS.f_negate fjm) (FS.f_comparison fjm) (ug  ^.  UserGroupCreatePeriods) ((val v'))
-                    _        -> return ()
                 "email" -> case (FS.f_value fjm >>= PP.fromPathPiece) of 
                     (Just v') -> where_ $ defaultFilterOp (FS.f_negate fjm) (FS.f_comparison fjm) (ug  ^.  UserGroupEmail) ((val v'))
                     _        -> return ()
@@ -149,6 +146,12 @@ getUsergroupcontentsR  = lift $ runDB $ do
                             (Just v') -> where_ $ defaultFilterOp (FS.f_negate fjm) (FS.f_comparison fjm) (ugc  ^.  UserGroupContentUserContentId) (just ((val v')))
                             _        -> return ()
                     Nothing -> where_ $ defaultFilterOp (FS.f_negate fjm) (FS.f_comparison fjm) (ugc  ^.  UserGroupContentUserContentId) nothing
+                           
+                "companyContentId" -> case FS.f_value fjm of
+                    Just value -> case PP.fromPathPiece value of 
+                            (Just v') -> where_ $ defaultFilterOp (FS.f_negate fjm) (FS.f_comparison fjm) (ugc  ^.  UserGroupContentCompanyContentId) (just ((val v')))
+                            _        -> return ()
+                    Nothing -> where_ $ defaultFilterOp (FS.f_negate fjm) (FS.f_comparison fjm) (ugc  ^.  UserGroupContentCompanyContentId) nothing
                            
 
                 _ -> return ()

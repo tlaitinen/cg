@@ -101,3 +101,23 @@ instance Validatable Version where
         results <- sequence [
             ]
         return $ catMaybes results
+instance Validatable EnumType where
+    validate v = do
+        results <- sequence [
+                checkResult "EnumType.name nonEmpty" (nonEmpty $ enumTypeName v)            ]
+        return $ catMaybes results
+instance Validatable EnumValue where
+    validate v = do
+        results <- sequence [
+                checkResult "EnumValue.name nonEmpty" (nonEmpty $ enumValueName v)            ]
+        return $ catMaybes results
+instance Validatable Company where
+    validate v = do
+        results <- sequence [
+            ]
+        return $ catMaybes results
+instance Validatable CompanyField where
+    validate v = do
+        results <- sequence [
+            ]
+        return $ catMaybes results

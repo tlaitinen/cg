@@ -84,7 +84,7 @@ library
         aeson >=0.6 && <0.11,
         conduit >=1.0 && <2.0,
         monad-logger >=0.3 && <0.4,
-        unix,
+        unix -any,
         fast-logger >=2.2 && <2.5,
         wai-logger >=2.2 && <2.3,
         file-embed -any,
@@ -106,13 +106,12 @@ library
         path-pieces -any,
         esqueleto -any,
         random -any,
-        yesod-auth-hashdb,
-        process,
-        temporary,
-        filepath,
-        mime-mail,
-        smtp-mail
-
+        yesod-auth-hashdb -any,
+        process -any,
+        temporary -any,
+        filepath -any,
+        mime-mail -any,
+        smtp-mail -any
     extensions: TemplateHaskell QuasiQuotes OverloadedStrings
                 NoImplicitPrelude MultiParamTypeClasses TypeFamilies GADTs
                 GeneralizedNewtypeDeriving FlexibleContexts FlexibleInstances

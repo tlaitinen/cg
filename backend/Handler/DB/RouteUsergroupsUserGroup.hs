@@ -78,16 +78,6 @@ putUsergroupsUserGroupIdR p1 = lift $ runDB $ do
     jsonBodyObj <- case jsonBody of
         A.Object o -> return o
         v -> sendResponseStatus status400 $ A.object [ "message" .= ("Expected JSON object in the request body, got: " ++ show v) ]
-    attr_createPeriods <- case HML.lookup "createPeriods" jsonBodyObj of 
-        Just v -> case A.fromJSON v of
-            A.Success v' -> return v'
-            A.Error err -> sendResponseStatus status400 $ A.object [
-                    "message" .= ("Could not parse value from attribute createPeriods in the JSON object in request body" :: Text),
-                    "error" .= err
-                ]
-        Nothing -> sendResponseStatus status400 $ A.object [
-                "message" .= ("Expected attribute createPeriods in the JSON object in request body" :: Text)
-            ]
     attr_email <- case HML.lookup "email" jsonBodyObj of 
         Just v -> case A.fromJSON v of
             A.Success v' -> return v'
@@ -178,8 +168,6 @@ putUsergroupsUserGroupIdR p1 = lift $ runDB $ do
                     ]
     
             return $ e {
-                            userGroupCreatePeriods = attr_createPeriods
-                    ,
                             userGroupEmail = attr_email
                     ,
                             userGroupName = attr_name

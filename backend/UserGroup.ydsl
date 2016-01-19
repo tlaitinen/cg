@@ -16,7 +16,6 @@ entity UserGroupContent {
 
 entity UserGroup {
     instance of Named, Versioned, Deletable, Restricted;
-    createPeriods Int32 default 1;
     email Text default "";
     organization Maybe Text;
 
@@ -91,7 +90,6 @@ route /usergroups {
     post {
         ugId <- insert UserGroup from {
             name             = $request.name,
-            createPeriods    = $request.createPeriods,
             email            = $request.email,
             deletedVersionId = Nothing,
             activeId         = Nothing,
@@ -126,7 +124,6 @@ route /usergroups/#UserGroupId {
         update UserGroup identified by $1 with {
             name = $request.name,
             email = $request.email,
-            createPeriods = $request.createPeriods,
             activeStartTime = now()
         };
     }
