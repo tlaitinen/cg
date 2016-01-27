@@ -80,7 +80,6 @@ UserGroupContent json
     fileContentId FileId Maybe   default=NULL
     userGroupContentId UserGroupId Maybe   default=NULL
     userContentId UserId Maybe   default=NULL
-    companyContentId CompanyId Maybe   default=NULL
     deletedVersionId VersionId Maybe   default=NULL
 UserGroup json
     email Text  "default=''"
@@ -125,36 +124,6 @@ User json
 Version json
     time UTCTime  
     userId UserId  
-EnumType json
-    name Text  
-EnumValue json
-    value Text  
-    name Text  
-Company json
-    isinCode Text  
-    dateFounded Day  
-    ipoDate Day  
-    delistedDate Day  
-    activeId CompanyId Maybe   default=NULL
-    activeStartTime UTCTime Maybe  
-    activeEndTime UTCTime Maybe  
-    deletedVersionId VersionId Maybe   default=NULL
-CompanyField json
-    name CFName  
-    activeId CompanyFieldId Maybe   default=NULL
-    activeStartTime UTCTime Maybe  
-    activeEndTime UTCTime Maybe  
-    deletedVersionId VersionId Maybe   default=NULL
-    startDay Day Maybe  
-    endDay Day Maybe  
-    type FieldType  
-    textValue Text Maybe  
-    doubleValue Double Maybe  
-    intValue Int Maybe  
-    enumTypeId EnumTypeId Maybe   default=NULL
-    enumValueId EnumValueId Maybe   default=NULL
-    boolValue Bool Maybe  
-    dayValue Day Maybe  
 |]
 newFile :: Text -> Int32 -> Text -> UTCTime -> File
 newFile contentType_ size_ name_ insertionTime_ = File {
@@ -174,7 +143,6 @@ newUserGroupContent userGroupId_ = UserGroupContent {
     userGroupContentFileContentId = Nothing,
     userGroupContentUserGroupContentId = Nothing,
     userGroupContentUserContentId = Nothing,
-    userGroupContentCompanyContentId = Nothing,
     userGroupContentDeletedVersionId = Nothing
 }    
 newUserGroup :: Text -> UserGroup
@@ -224,44 +192,6 @@ newVersion time_ userId_ = Version {
     versionTime = time_,
     versionUserId = userId_
 }    
-newEnumType :: Text -> EnumType
-newEnumType name_ = EnumType {
-    enumTypeName = name_
-}    
-newEnumValue :: Text -> Text -> EnumValue
-newEnumValue value_ name_ = EnumValue {
-    enumValueValue = value_,
-    enumValueName = name_
-}    
-newCompany :: Text -> Day -> Day -> Day -> Company
-newCompany isinCode_ dateFounded_ ipoDate_ delistedDate_ = Company {
-    companyIsinCode = isinCode_,
-    companyDateFounded = dateFounded_,
-    companyIpoDate = ipoDate_,
-    companyDelistedDate = delistedDate_,
-    companyActiveId = Nothing,
-    companyActiveStartTime = Nothing,
-    companyActiveEndTime = Nothing,
-    companyDeletedVersionId = Nothing
-}    
-newCompanyField :: CFName -> FieldType -> CompanyField
-newCompanyField name_ type_ = CompanyField {
-    companyFieldName = name_,
-    companyFieldActiveId = Nothing,
-    companyFieldActiveStartTime = Nothing,
-    companyFieldActiveEndTime = Nothing,
-    companyFieldDeletedVersionId = Nothing,
-    companyFieldStartDay = Nothing,
-    companyFieldEndDay = Nothing,
-    companyFieldType = type_,
-    companyFieldTextValue = Nothing,
-    companyFieldDoubleValue = Nothing,
-    companyFieldIntValue = Nothing,
-    companyFieldEnumTypeId = Nothing,
-    companyFieldEnumValueId = Nothing,
-    companyFieldBoolValue = Nothing,
-    companyFieldDayValue = Nothing
-}    
 class Named a where
     namedName :: a -> Text
 data NamedInstanceFieldName = NamedName 
@@ -271,22 +201,14 @@ instance Named UserGroup where
     namedName = userGroupName
 instance Named User where
     namedName = userName
-instance Named EnumType where
-    namedName = enumTypeName
-instance Named EnumValue where
-    namedName = enumValueName
 data NamedInstance = NamedInstanceFile (Entity File)
     | NamedInstanceUserGroup (Entity UserGroup)
     | NamedInstanceUser (Entity User)
-    | NamedInstanceEnumType (Entity EnumType)
-    | NamedInstanceEnumValue (Entity EnumValue)
 
 
 data NamedInstanceId = NamedInstanceFileId FileId
     | NamedInstanceUserGroupId UserGroupId
     | NamedInstanceUserId UserId
-    | NamedInstanceEnumTypeId EnumTypeId
-    | NamedInstanceEnumValueId EnumValueId
     deriving (Eq, Ord)
 
 reflectNamedInstanceId :: NamedInstanceId -> (Text, Int64)
@@ -294,8 +216,6 @@ reflectNamedInstanceId x = case x of
     NamedInstanceFileId key -> ("File", fromSqlKey key)
     NamedInstanceUserGroupId key -> ("UserGroup", fromSqlKey key)
     NamedInstanceUserId key -> ("User", fromSqlKey key)
-    NamedInstanceEnumTypeId key -> ("EnumType", fromSqlKey key)
-    NamedInstanceEnumValueId key -> ("EnumValue", fromSqlKey key)
 
 
 instance Named NamedInstance where
@@ -303,8 +223,6 @@ instance Named NamedInstance where
         NamedInstanceFile (Entity _ e) -> fileName e
         NamedInstanceUserGroup (Entity _ e) -> userGroupName e
         NamedInstanceUser (Entity _ e) -> userName e
-        NamedInstanceEnumType (Entity _ e) -> enumTypeName e
-        NamedInstanceEnumValue (Entity _ e) -> enumValueName e
     
 data NamedInstanceFilterType = NamedInstanceNameFilter (SqlExpr (Database.Esqueleto.Value (Text)) -> SqlExpr (Database.Esqueleto.Value Bool))
 lookupNamedInstance :: forall (m :: * -> *). (MonadIO m) =>
@@ -319,12 +237,6 @@ lookupNamedInstance k = case k of
         NamedInstanceUserId key -> runMaybeT $ do
             val <- MaybeT $ get key
             return $ NamedInstanceUser $ Entity key val
-        NamedInstanceEnumTypeId key -> runMaybeT $ do
-            val <- MaybeT $ get key
-            return $ NamedInstanceEnumType $ Entity key val
-        NamedInstanceEnumValueId key -> runMaybeT $ do
-            val <- MaybeT $ get key
-            return $ NamedInstanceEnumValue $ Entity key val
 
     
 selectNamed :: forall (m :: * -> *). 
@@ -358,31 +270,11 @@ selectNamed filters = do
             ) exprs
     
         return e
-    result_EnumType <- select $ from $ \e -> do
-        let _ = e ^. EnumTypeId
-        forM_ filters $ \exprs -> 
-            when (not . null $ exprs) $ where_ $ foldl1 (||.) $ map (\expr -> case expr of 
-                NamedInstanceNameFilter op -> op $ e ^. EnumTypeName
-    
-            ) exprs
-    
-        return e
-    result_EnumValue <- select $ from $ \e -> do
-        let _ = e ^. EnumValueId
-        forM_ filters $ \exprs -> 
-            when (not . null $ exprs) $ where_ $ foldl1 (||.) $ map (\expr -> case expr of 
-                NamedInstanceNameFilter op -> op $ e ^. EnumValueName
-    
-            ) exprs
-    
-        return e
 
     return $ concat [
         map NamedInstanceFile result_File
         , map NamedInstanceUserGroup result_UserGroup
         , map NamedInstanceUser result_User
-        , map NamedInstanceEnumType result_EnumType
-        , map NamedInstanceEnumValue result_EnumValue
 
         ]
 data NamedInstanceUpdateType = NamedInstanceUpdateName (SqlExpr (Database.Esqueleto.Value (Text)))
@@ -427,34 +319,6 @@ updateNamed filters updates = do
         forM_ filters $ \exprs -> 
             when (not . null $ exprs) $ where_ $ foldl1 (||.) $ map (\expr -> case expr of 
                 NamedInstanceNameFilter op -> op $ e ^. UserName
-    
-            ) exprs
-    
-     
-                
-    update $ \e -> do
-        let _ = e ^. EnumTypeId
-        set e $ map (\u -> case u of
-                    NamedInstanceUpdateName v -> EnumTypeName =. v
-    
-            ) updates
-        forM_ filters $ \exprs -> 
-            when (not . null $ exprs) $ where_ $ foldl1 (||.) $ map (\expr -> case expr of 
-                NamedInstanceNameFilter op -> op $ e ^. EnumTypeName
-    
-            ) exprs
-    
-     
-                
-    update $ \e -> do
-        let _ = e ^. EnumValueId
-        set e $ map (\u -> case u of
-                    NamedInstanceUpdateName v -> EnumValueName =. v
-    
-            ) updates
-        forM_ filters $ \exprs -> 
-            when (not . null $ exprs) $ where_ $ foldl1 (||.) $ map (\expr -> case expr of 
-                NamedInstanceNameFilter op -> op $ e ^. EnumValueName
     
             ) exprs
     
@@ -544,17 +408,14 @@ class Restricted a where
 instance Restricted File where
 instance Restricted UserGroup where
 instance Restricted User where
-instance Restricted Company where
 data RestrictedInstance = RestrictedInstanceFile (Entity File)
     | RestrictedInstanceUserGroup (Entity UserGroup)
     | RestrictedInstanceUser (Entity User)
-    | RestrictedInstanceCompany (Entity Company)
 
 
 data RestrictedInstanceId = RestrictedInstanceFileId FileId
     | RestrictedInstanceUserGroupId UserGroupId
     | RestrictedInstanceUserId UserId
-    | RestrictedInstanceCompanyId CompanyId
     deriving (Eq, Ord)
 
 reflectRestrictedInstanceId :: RestrictedInstanceId -> (Text, Int64)
@@ -562,7 +423,6 @@ reflectRestrictedInstanceId x = case x of
     RestrictedInstanceFileId key -> ("File", fromSqlKey key)
     RestrictedInstanceUserGroupId key -> ("UserGroup", fromSqlKey key)
     RestrictedInstanceUserId key -> ("User", fromSqlKey key)
-    RestrictedInstanceCompanyId key -> ("Company", fromSqlKey key)
 
 
 instance Restricted RestrictedInstance where
@@ -578,9 +438,6 @@ lookupRestrictedInstance k = case k of
         RestrictedInstanceUserId key -> runMaybeT $ do
             val <- MaybeT $ get key
             return $ RestrictedInstanceUser $ Entity key val
-        RestrictedInstanceCompanyId key -> runMaybeT $ do
-            val <- MaybeT $ get key
-            return $ RestrictedInstanceCompany $ Entity key val
 
     
 selectRestricted :: forall (m :: * -> *). 
@@ -599,16 +456,11 @@ selectRestricted  = do
         let _ = e ^. UserId
     
         return e
-    result_Company <- select $ from $ \e -> do
-        let _ = e ^. CompanyId
-    
-        return e
 
     return $ concat [
         map RestrictedInstanceFile result_File
         , map RestrictedInstanceUserGroup result_UserGroup
         , map RestrictedInstanceUser result_User
-        , map RestrictedInstanceCompany result_Company
 
         ]
 class Versioned a where
@@ -628,26 +480,14 @@ instance Versioned User where
     versionedActiveId = (fmap VersionedInstanceUserId) . userActiveId
     versionedActiveStartTime = userActiveStartTime
     versionedActiveEndTime = userActiveEndTime
-instance Versioned Company where
-    versionedActiveId = (fmap VersionedInstanceCompanyId) . companyActiveId
-    versionedActiveStartTime = companyActiveStartTime
-    versionedActiveEndTime = companyActiveEndTime
-instance Versioned CompanyField where
-    versionedActiveId = (fmap VersionedInstanceCompanyFieldId) . companyFieldActiveId
-    versionedActiveStartTime = companyFieldActiveStartTime
-    versionedActiveEndTime = companyFieldActiveEndTime
 data VersionedInstance = VersionedInstanceFile (Entity File)
     | VersionedInstanceUserGroup (Entity UserGroup)
     | VersionedInstanceUser (Entity User)
-    | VersionedInstanceCompany (Entity Company)
-    | VersionedInstanceCompanyField (Entity CompanyField)
 
 
 data VersionedInstanceId = VersionedInstanceFileId FileId
     | VersionedInstanceUserGroupId UserGroupId
     | VersionedInstanceUserId UserId
-    | VersionedInstanceCompanyId CompanyId
-    | VersionedInstanceCompanyFieldId CompanyFieldId
     deriving (Eq, Ord)
 
 reflectVersionedInstanceId :: VersionedInstanceId -> (Text, Int64)
@@ -655,8 +495,6 @@ reflectVersionedInstanceId x = case x of
     VersionedInstanceFileId key -> ("File", fromSqlKey key)
     VersionedInstanceUserGroupId key -> ("UserGroup", fromSqlKey key)
     VersionedInstanceUserId key -> ("User", fromSqlKey key)
-    VersionedInstanceCompanyId key -> ("Company", fromSqlKey key)
-    VersionedInstanceCompanyFieldId key -> ("CompanyField", fromSqlKey key)
 
 
 instance Versioned VersionedInstance where
@@ -664,22 +502,16 @@ instance Versioned VersionedInstance where
         VersionedInstanceFile (Entity _ e) -> (fmap VersionedInstanceFileId) $ fileActiveId e
         VersionedInstanceUserGroup (Entity _ e) -> (fmap VersionedInstanceUserGroupId) $ userGroupActiveId e
         VersionedInstanceUser (Entity _ e) -> (fmap VersionedInstanceUserId) $ userActiveId e
-        VersionedInstanceCompany (Entity _ e) -> (fmap VersionedInstanceCompanyId) $ companyActiveId e
-        VersionedInstanceCompanyField (Entity _ e) -> (fmap VersionedInstanceCompanyFieldId) $ companyFieldActiveId e
     
     versionedActiveStartTime x = case x of
         VersionedInstanceFile (Entity _ e) -> fileActiveStartTime e
         VersionedInstanceUserGroup (Entity _ e) -> userGroupActiveStartTime e
         VersionedInstanceUser (Entity _ e) -> userActiveStartTime e
-        VersionedInstanceCompany (Entity _ e) -> companyActiveStartTime e
-        VersionedInstanceCompanyField (Entity _ e) -> companyFieldActiveStartTime e
     
     versionedActiveEndTime x = case x of
         VersionedInstanceFile (Entity _ e) -> fileActiveEndTime e
         VersionedInstanceUserGroup (Entity _ e) -> userGroupActiveEndTime e
         VersionedInstanceUser (Entity _ e) -> userActiveEndTime e
-        VersionedInstanceCompany (Entity _ e) -> companyActiveEndTime e
-        VersionedInstanceCompanyField (Entity _ e) -> companyFieldActiveEndTime e
     
 data VersionedInstanceFilterType = VersionedInstanceActiveStartTimeFilter (SqlExpr (Database.Esqueleto.Value (Maybe UTCTime)) -> SqlExpr (Database.Esqueleto.Value Bool))    | VersionedInstanceActiveEndTimeFilter (SqlExpr (Database.Esqueleto.Value (Maybe UTCTime)) -> SqlExpr (Database.Esqueleto.Value Bool))
 lookupVersionedInstance :: forall (m :: * -> *). (MonadIO m) =>
@@ -694,12 +526,6 @@ lookupVersionedInstance k = case k of
         VersionedInstanceUserId key -> runMaybeT $ do
             val <- MaybeT $ get key
             return $ VersionedInstanceUser $ Entity key val
-        VersionedInstanceCompanyId key -> runMaybeT $ do
-            val <- MaybeT $ get key
-            return $ VersionedInstanceCompany $ Entity key val
-        VersionedInstanceCompanyFieldId key -> runMaybeT $ do
-            val <- MaybeT $ get key
-            return $ VersionedInstanceCompanyField $ Entity key val
 
     
 selectVersioned :: forall (m :: * -> *). 
@@ -736,33 +562,11 @@ selectVersioned filters = do
             ) exprs
     
         return e
-    result_Company <- select $ from $ \e -> do
-        let _ = e ^. CompanyId
-        forM_ filters $ \exprs -> 
-            when (not . null $ exprs) $ where_ $ foldl1 (||.) $ map (\expr -> case expr of 
-                VersionedInstanceActiveStartTimeFilter op -> op $ e ^. CompanyActiveStartTime
-                VersionedInstanceActiveEndTimeFilter op -> op $ e ^. CompanyActiveEndTime
-    
-            ) exprs
-    
-        return e
-    result_CompanyField <- select $ from $ \e -> do
-        let _ = e ^. CompanyFieldId
-        forM_ filters $ \exprs -> 
-            when (not . null $ exprs) $ where_ $ foldl1 (||.) $ map (\expr -> case expr of 
-                VersionedInstanceActiveStartTimeFilter op -> op $ e ^. CompanyFieldActiveStartTime
-                VersionedInstanceActiveEndTimeFilter op -> op $ e ^. CompanyFieldActiveEndTime
-    
-            ) exprs
-    
-        return e
 
     return $ concat [
         map VersionedInstanceFile result_File
         , map VersionedInstanceUserGroup result_UserGroup
         , map VersionedInstanceUser result_User
-        , map VersionedInstanceCompany result_Company
-        , map VersionedInstanceCompanyField result_CompanyField
 
         ]
 data VersionedInstanceUpdateType = VersionedInstanceUpdateActiveStartTime (SqlExpr (Database.Esqueleto.Value (Maybe UTCTime)))    | VersionedInstanceUpdateActiveEndTime (SqlExpr (Database.Esqueleto.Value (Maybe UTCTime)))
@@ -818,38 +622,6 @@ updateVersioned filters updates = do
     
      
                 
-    update $ \e -> do
-        let _ = e ^. CompanyId
-        set e $ map (\u -> case u of
-                    VersionedInstanceUpdateActiveStartTime v -> CompanyActiveStartTime =. v
-                    VersionedInstanceUpdateActiveEndTime v -> CompanyActiveEndTime =. v
-    
-            ) updates
-        forM_ filters $ \exprs -> 
-            when (not . null $ exprs) $ where_ $ foldl1 (||.) $ map (\expr -> case expr of 
-                VersionedInstanceActiveStartTimeFilter op -> op $ e ^. CompanyActiveStartTime
-                VersionedInstanceActiveEndTimeFilter op -> op $ e ^. CompanyActiveEndTime
-    
-            ) exprs
-    
-     
-                
-    update $ \e -> do
-        let _ = e ^. CompanyFieldId
-        set e $ map (\u -> case u of
-                    VersionedInstanceUpdateActiveStartTime v -> CompanyFieldActiveStartTime =. v
-                    VersionedInstanceUpdateActiveEndTime v -> CompanyFieldActiveEndTime =. v
-    
-            ) updates
-        forM_ filters $ \exprs -> 
-            when (not . null $ exprs) $ where_ $ foldl1 (||.) $ map (\expr -> case expr of 
-                VersionedInstanceActiveStartTimeFilter op -> op $ e ^. CompanyFieldActiveStartTime
-                VersionedInstanceActiveEndTimeFilter op -> op $ e ^. CompanyFieldActiveEndTime
-    
-            ) exprs
-    
-     
-                
 
     return ()
 
@@ -866,17 +638,11 @@ instance Deletable UserGroupItem where
     deletableDeletedVersionId = userGroupItemDeletedVersionId
 instance Deletable User where
     deletableDeletedVersionId = userDeletedVersionId
-instance Deletable Company where
-    deletableDeletedVersionId = companyDeletedVersionId
-instance Deletable CompanyField where
-    deletableDeletedVersionId = companyFieldDeletedVersionId
 data DeletableInstance = DeletableInstanceFile (Entity File)
     | DeletableInstanceUserGroupContent (Entity UserGroupContent)
     | DeletableInstanceUserGroup (Entity UserGroup)
     | DeletableInstanceUserGroupItem (Entity UserGroupItem)
     | DeletableInstanceUser (Entity User)
-    | DeletableInstanceCompany (Entity Company)
-    | DeletableInstanceCompanyField (Entity CompanyField)
 
 
 data DeletableInstanceId = DeletableInstanceFileId FileId
@@ -884,8 +650,6 @@ data DeletableInstanceId = DeletableInstanceFileId FileId
     | DeletableInstanceUserGroupId UserGroupId
     | DeletableInstanceUserGroupItemId UserGroupItemId
     | DeletableInstanceUserId UserId
-    | DeletableInstanceCompanyId CompanyId
-    | DeletableInstanceCompanyFieldId CompanyFieldId
     deriving (Eq, Ord)
 
 reflectDeletableInstanceId :: DeletableInstanceId -> (Text, Int64)
@@ -895,8 +659,6 @@ reflectDeletableInstanceId x = case x of
     DeletableInstanceUserGroupId key -> ("UserGroup", fromSqlKey key)
     DeletableInstanceUserGroupItemId key -> ("UserGroupItem", fromSqlKey key)
     DeletableInstanceUserId key -> ("User", fromSqlKey key)
-    DeletableInstanceCompanyId key -> ("Company", fromSqlKey key)
-    DeletableInstanceCompanyFieldId key -> ("CompanyField", fromSqlKey key)
 
 
 instance Deletable DeletableInstance where
@@ -906,8 +668,6 @@ instance Deletable DeletableInstance where
         DeletableInstanceUserGroup (Entity _ e) -> userGroupDeletedVersionId e
         DeletableInstanceUserGroupItem (Entity _ e) -> userGroupItemDeletedVersionId e
         DeletableInstanceUser (Entity _ e) -> userDeletedVersionId e
-        DeletableInstanceCompany (Entity _ e) -> companyDeletedVersionId e
-        DeletableInstanceCompanyField (Entity _ e) -> companyFieldDeletedVersionId e
     
 data DeletableInstanceFilterType = DeletableInstanceDeletedVersionIdFilter (SqlExpr (Database.Esqueleto.Value (Maybe VersionId)) -> SqlExpr (Database.Esqueleto.Value Bool))
 lookupDeletableInstance :: forall (m :: * -> *). (MonadIO m) =>
@@ -928,12 +688,6 @@ lookupDeletableInstance k = case k of
         DeletableInstanceUserId key -> runMaybeT $ do
             val <- MaybeT $ get key
             return $ DeletableInstanceUser $ Entity key val
-        DeletableInstanceCompanyId key -> runMaybeT $ do
-            val <- MaybeT $ get key
-            return $ DeletableInstanceCompany $ Entity key val
-        DeletableInstanceCompanyFieldId key -> runMaybeT $ do
-            val <- MaybeT $ get key
-            return $ DeletableInstanceCompanyField $ Entity key val
 
     
 selectDeletable :: forall (m :: * -> *). 
@@ -985,24 +739,6 @@ selectDeletable filters = do
             ) exprs
     
         return e
-    result_Company <- select $ from $ \e -> do
-        let _ = e ^. CompanyId
-        forM_ filters $ \exprs -> 
-            when (not . null $ exprs) $ where_ $ foldl1 (||.) $ map (\expr -> case expr of 
-                DeletableInstanceDeletedVersionIdFilter op -> op $ e ^. CompanyDeletedVersionId
-    
-            ) exprs
-    
-        return e
-    result_CompanyField <- select $ from $ \e -> do
-        let _ = e ^. CompanyFieldId
-        forM_ filters $ \exprs -> 
-            when (not . null $ exprs) $ where_ $ foldl1 (||.) $ map (\expr -> case expr of 
-                DeletableInstanceDeletedVersionIdFilter op -> op $ e ^. CompanyFieldDeletedVersionId
-    
-            ) exprs
-    
-        return e
 
     return $ concat [
         map DeletableInstanceFile result_File
@@ -1010,8 +746,6 @@ selectDeletable filters = do
         , map DeletableInstanceUserGroup result_UserGroup
         , map DeletableInstanceUserGroupItem result_UserGroupItem
         , map DeletableInstanceUser result_User
-        , map DeletableInstanceCompany result_Company
-        , map DeletableInstanceCompanyField result_CompanyField
 
         ]
 data DeletableInstanceUpdateType = DeletableInstanceUpdateDeletedVersionId (SqlExpr (Database.Esqueleto.Value (Maybe VersionId)))
@@ -1089,236 +823,6 @@ updateDeletable filters updates = do
     
      
                 
-    update $ \e -> do
-        let _ = e ^. CompanyId
-        set e $ map (\u -> case u of
-                    DeletableInstanceUpdateDeletedVersionId v -> CompanyDeletedVersionId =. v
-    
-            ) updates
-        forM_ filters $ \exprs -> 
-            when (not . null $ exprs) $ where_ $ foldl1 (||.) $ map (\expr -> case expr of 
-                DeletableInstanceDeletedVersionIdFilter op -> op $ e ^. CompanyDeletedVersionId
-    
-            ) exprs
-    
-     
-                
-    update $ \e -> do
-        let _ = e ^. CompanyFieldId
-        set e $ map (\u -> case u of
-                    DeletableInstanceUpdateDeletedVersionId v -> CompanyFieldDeletedVersionId =. v
-    
-            ) updates
-        forM_ filters $ \exprs -> 
-            when (not . null $ exprs) $ where_ $ foldl1 (||.) $ map (\expr -> case expr of 
-                DeletableInstanceDeletedVersionIdFilter op -> op $ e ^. CompanyFieldDeletedVersionId
-    
-            ) exprs
-    
-     
-                
-
-    return ()
-
-class HasDateRange a where
-    hasDateRangeStartDay :: a -> Maybe Day
-    hasDateRangeEndDay :: a -> Maybe Day
-data HasDateRangeInstanceFieldName = HasDateRangeStartDay    | HasDateRangeEndDay 
-instance HasDateRange CompanyField where
-    hasDateRangeStartDay = companyFieldStartDay
-    hasDateRangeEndDay = companyFieldEndDay
-data HasDateRangeInstance = HasDateRangeInstanceCompanyField (Entity CompanyField)
-
-
-data HasDateRangeInstanceId = HasDateRangeInstanceCompanyFieldId CompanyFieldId
-    deriving (Eq, Ord)
-
-reflectHasDateRangeInstanceId :: HasDateRangeInstanceId -> (Text, Int64)
-reflectHasDateRangeInstanceId x = case x of
-    HasDateRangeInstanceCompanyFieldId key -> ("CompanyField", fromSqlKey key)
-
-
-instance HasDateRange HasDateRangeInstance where
-    hasDateRangeStartDay x = case x of
-        HasDateRangeInstanceCompanyField (Entity _ e) -> companyFieldStartDay e
-    
-    hasDateRangeEndDay x = case x of
-        HasDateRangeInstanceCompanyField (Entity _ e) -> companyFieldEndDay e
-    
-data HasDateRangeInstanceFilterType = HasDateRangeInstanceStartDayFilter (SqlExpr (Database.Esqueleto.Value (Maybe Day)) -> SqlExpr (Database.Esqueleto.Value Bool))    | HasDateRangeInstanceEndDayFilter (SqlExpr (Database.Esqueleto.Value (Maybe Day)) -> SqlExpr (Database.Esqueleto.Value Bool))
-lookupHasDateRangeInstance :: forall (m :: * -> *). (MonadIO m) =>
-    HasDateRangeInstanceId -> SqlPersistT m (Maybe HasDateRangeInstance)
-lookupHasDateRangeInstance k = case k of
-        HasDateRangeInstanceCompanyFieldId key -> runMaybeT $ do
-            val <- MaybeT $ get key
-            return $ HasDateRangeInstanceCompanyField $ Entity key val
-
-    
-selectHasDateRange :: forall (m :: * -> *). 
-    (MonadLogger m, MonadIO m, MonadThrow m, MonadBaseControl IO m) => 
-    [[HasDateRangeInstanceFilterType]] -> SqlPersistT m [HasDateRangeInstance]
-selectHasDateRange filters = do
-    result_CompanyField <- select $ from $ \e -> do
-        let _ = e ^. CompanyFieldId
-        forM_ filters $ \exprs -> 
-            when (not . null $ exprs) $ where_ $ foldl1 (||.) $ map (\expr -> case expr of 
-                HasDateRangeInstanceStartDayFilter op -> op $ e ^. CompanyFieldStartDay
-                HasDateRangeInstanceEndDayFilter op -> op $ e ^. CompanyFieldEndDay
-    
-            ) exprs
-    
-        return e
-
-    return $ concat [
-        map HasDateRangeInstanceCompanyField result_CompanyField
-
-        ]
-data HasDateRangeInstanceUpdateType = HasDateRangeInstanceUpdateStartDay (SqlExpr (Database.Esqueleto.Value (Maybe Day)))    | HasDateRangeInstanceUpdateEndDay (SqlExpr (Database.Esqueleto.Value (Maybe Day)))
-updateHasDateRange :: forall (m :: * -> *). 
-    (MonadLogger m, MonadIO m, MonadThrow m, MonadBaseControl IO m) => 
-    [[HasDateRangeInstanceFilterType]] -> [HasDateRangeInstanceUpdateType] -> SqlPersistT m ()
-updateHasDateRange filters updates = do
-    update $ \e -> do
-        let _ = e ^. CompanyFieldId
-        set e $ map (\u -> case u of
-                    HasDateRangeInstanceUpdateStartDay v -> CompanyFieldStartDay =. v
-                    HasDateRangeInstanceUpdateEndDay v -> CompanyFieldEndDay =. v
-    
-            ) updates
-        forM_ filters $ \exprs -> 
-            when (not . null $ exprs) $ where_ $ foldl1 (||.) $ map (\expr -> case expr of 
-                HasDateRangeInstanceStartDayFilter op -> op $ e ^. CompanyFieldStartDay
-                HasDateRangeInstanceEndDayFilter op -> op $ e ^. CompanyFieldEndDay
-    
-            ) exprs
-    
-     
-                
-
-    return ()
-
-class IsTypedField a where
-    isTypedFieldType :: a -> FieldType
-    isTypedFieldTextValue :: a -> Maybe Text
-    isTypedFieldDoubleValue :: a -> Maybe Double
-    isTypedFieldIntValue :: a -> Maybe Int
-    isTypedFieldEnumTypeId :: a -> Maybe EnumTypeId
-    isTypedFieldEnumValueId :: a -> Maybe EnumValueId
-    isTypedFieldBoolValue :: a -> Maybe Bool
-    isTypedFieldDayValue :: a -> Maybe Day
-data IsTypedFieldInstanceFieldName = IsTypedFieldType    | IsTypedFieldTextValue    | IsTypedFieldDoubleValue    | IsTypedFieldIntValue    | IsTypedFieldEnumTypeId    | IsTypedFieldEnumValueId    | IsTypedFieldBoolValue    | IsTypedFieldDayValue 
-instance IsTypedField CompanyField where
-    isTypedFieldType = companyFieldType
-    isTypedFieldTextValue = companyFieldTextValue
-    isTypedFieldDoubleValue = companyFieldDoubleValue
-    isTypedFieldIntValue = companyFieldIntValue
-    isTypedFieldEnumTypeId = companyFieldEnumTypeId
-    isTypedFieldEnumValueId = companyFieldEnumValueId
-    isTypedFieldBoolValue = companyFieldBoolValue
-    isTypedFieldDayValue = companyFieldDayValue
-data IsTypedFieldInstance = IsTypedFieldInstanceCompanyField (Entity CompanyField)
-
-
-data IsTypedFieldInstanceId = IsTypedFieldInstanceCompanyFieldId CompanyFieldId
-    deriving (Eq, Ord)
-
-reflectIsTypedFieldInstanceId :: IsTypedFieldInstanceId -> (Text, Int64)
-reflectIsTypedFieldInstanceId x = case x of
-    IsTypedFieldInstanceCompanyFieldId key -> ("CompanyField", fromSqlKey key)
-
-
-instance IsTypedField IsTypedFieldInstance where
-    isTypedFieldType x = case x of
-        IsTypedFieldInstanceCompanyField (Entity _ e) -> companyFieldType e
-    
-    isTypedFieldTextValue x = case x of
-        IsTypedFieldInstanceCompanyField (Entity _ e) -> companyFieldTextValue e
-    
-    isTypedFieldDoubleValue x = case x of
-        IsTypedFieldInstanceCompanyField (Entity _ e) -> companyFieldDoubleValue e
-    
-    isTypedFieldIntValue x = case x of
-        IsTypedFieldInstanceCompanyField (Entity _ e) -> companyFieldIntValue e
-    
-    isTypedFieldEnumTypeId x = case x of
-        IsTypedFieldInstanceCompanyField (Entity _ e) -> companyFieldEnumTypeId e
-    
-    isTypedFieldEnumValueId x = case x of
-        IsTypedFieldInstanceCompanyField (Entity _ e) -> companyFieldEnumValueId e
-    
-    isTypedFieldBoolValue x = case x of
-        IsTypedFieldInstanceCompanyField (Entity _ e) -> companyFieldBoolValue e
-    
-    isTypedFieldDayValue x = case x of
-        IsTypedFieldInstanceCompanyField (Entity _ e) -> companyFieldDayValue e
-    
-data IsTypedFieldInstanceFilterType = IsTypedFieldInstanceTypeFilter (SqlExpr (Database.Esqueleto.Value (FieldType)) -> SqlExpr (Database.Esqueleto.Value Bool))    | IsTypedFieldInstanceTextValueFilter (SqlExpr (Database.Esqueleto.Value (Maybe Text)) -> SqlExpr (Database.Esqueleto.Value Bool))    | IsTypedFieldInstanceDoubleValueFilter (SqlExpr (Database.Esqueleto.Value (Maybe Double)) -> SqlExpr (Database.Esqueleto.Value Bool))    | IsTypedFieldInstanceIntValueFilter (SqlExpr (Database.Esqueleto.Value (Maybe Int)) -> SqlExpr (Database.Esqueleto.Value Bool))    | IsTypedFieldInstanceEnumTypeIdFilter (SqlExpr (Database.Esqueleto.Value (Maybe EnumTypeId)) -> SqlExpr (Database.Esqueleto.Value Bool))    | IsTypedFieldInstanceEnumValueIdFilter (SqlExpr (Database.Esqueleto.Value (Maybe EnumValueId)) -> SqlExpr (Database.Esqueleto.Value Bool))    | IsTypedFieldInstanceBoolValueFilter (SqlExpr (Database.Esqueleto.Value (Maybe Bool)) -> SqlExpr (Database.Esqueleto.Value Bool))    | IsTypedFieldInstanceDayValueFilter (SqlExpr (Database.Esqueleto.Value (Maybe Day)) -> SqlExpr (Database.Esqueleto.Value Bool))
-lookupIsTypedFieldInstance :: forall (m :: * -> *). (MonadIO m) =>
-    IsTypedFieldInstanceId -> SqlPersistT m (Maybe IsTypedFieldInstance)
-lookupIsTypedFieldInstance k = case k of
-        IsTypedFieldInstanceCompanyFieldId key -> runMaybeT $ do
-            val <- MaybeT $ get key
-            return $ IsTypedFieldInstanceCompanyField $ Entity key val
-
-    
-selectIsTypedField :: forall (m :: * -> *). 
-    (MonadLogger m, MonadIO m, MonadThrow m, MonadBaseControl IO m) => 
-    [[IsTypedFieldInstanceFilterType]] -> SqlPersistT m [IsTypedFieldInstance]
-selectIsTypedField filters = do
-    result_CompanyField <- select $ from $ \e -> do
-        let _ = e ^. CompanyFieldId
-        forM_ filters $ \exprs -> 
-            when (not . null $ exprs) $ where_ $ foldl1 (||.) $ map (\expr -> case expr of 
-                IsTypedFieldInstanceTypeFilter op -> op $ e ^. CompanyFieldType
-                IsTypedFieldInstanceTextValueFilter op -> op $ e ^. CompanyFieldTextValue
-                IsTypedFieldInstanceDoubleValueFilter op -> op $ e ^. CompanyFieldDoubleValue
-                IsTypedFieldInstanceIntValueFilter op -> op $ e ^. CompanyFieldIntValue
-                IsTypedFieldInstanceEnumTypeIdFilter op -> op $ e ^. CompanyFieldEnumTypeId
-                IsTypedFieldInstanceEnumValueIdFilter op -> op $ e ^. CompanyFieldEnumValueId
-                IsTypedFieldInstanceBoolValueFilter op -> op $ e ^. CompanyFieldBoolValue
-                IsTypedFieldInstanceDayValueFilter op -> op $ e ^. CompanyFieldDayValue
-    
-            ) exprs
-    
-        return e
-
-    return $ concat [
-        map IsTypedFieldInstanceCompanyField result_CompanyField
-
-        ]
-data IsTypedFieldInstanceUpdateType = IsTypedFieldInstanceUpdateType (SqlExpr (Database.Esqueleto.Value (FieldType)))    | IsTypedFieldInstanceUpdateTextValue (SqlExpr (Database.Esqueleto.Value (Maybe Text)))    | IsTypedFieldInstanceUpdateDoubleValue (SqlExpr (Database.Esqueleto.Value (Maybe Double)))    | IsTypedFieldInstanceUpdateIntValue (SqlExpr (Database.Esqueleto.Value (Maybe Int)))    | IsTypedFieldInstanceUpdateEnumTypeId (SqlExpr (Database.Esqueleto.Value (Maybe EnumTypeId)))    | IsTypedFieldInstanceUpdateEnumValueId (SqlExpr (Database.Esqueleto.Value (Maybe EnumValueId)))    | IsTypedFieldInstanceUpdateBoolValue (SqlExpr (Database.Esqueleto.Value (Maybe Bool)))    | IsTypedFieldInstanceUpdateDayValue (SqlExpr (Database.Esqueleto.Value (Maybe Day)))
-updateIsTypedField :: forall (m :: * -> *). 
-    (MonadLogger m, MonadIO m, MonadThrow m, MonadBaseControl IO m) => 
-    [[IsTypedFieldInstanceFilterType]] -> [IsTypedFieldInstanceUpdateType] -> SqlPersistT m ()
-updateIsTypedField filters updates = do
-    update $ \e -> do
-        let _ = e ^. CompanyFieldId
-        set e $ map (\u -> case u of
-                    IsTypedFieldInstanceUpdateType v -> CompanyFieldType =. v
-                    IsTypedFieldInstanceUpdateTextValue v -> CompanyFieldTextValue =. v
-                    IsTypedFieldInstanceUpdateDoubleValue v -> CompanyFieldDoubleValue =. v
-                    IsTypedFieldInstanceUpdateIntValue v -> CompanyFieldIntValue =. v
-                    IsTypedFieldInstanceUpdateEnumTypeId v -> CompanyFieldEnumTypeId =. v
-                    IsTypedFieldInstanceUpdateEnumValueId v -> CompanyFieldEnumValueId =. v
-                    IsTypedFieldInstanceUpdateBoolValue v -> CompanyFieldBoolValue =. v
-                    IsTypedFieldInstanceUpdateDayValue v -> CompanyFieldDayValue =. v
-    
-            ) updates
-        forM_ filters $ \exprs -> 
-            when (not . null $ exprs) $ where_ $ foldl1 (||.) $ map (\expr -> case expr of 
-                IsTypedFieldInstanceTypeFilter op -> op $ e ^. CompanyFieldType
-                IsTypedFieldInstanceTextValueFilter op -> op $ e ^. CompanyFieldTextValue
-                IsTypedFieldInstanceDoubleValueFilter op -> op $ e ^. CompanyFieldDoubleValue
-                IsTypedFieldInstanceIntValueFilter op -> op $ e ^. CompanyFieldIntValue
-                IsTypedFieldInstanceEnumTypeIdFilter op -> op $ e ^. CompanyFieldEnumTypeId
-                IsTypedFieldInstanceEnumValueIdFilter op -> op $ e ^. CompanyFieldEnumValueId
-                IsTypedFieldInstanceBoolValueFilter op -> op $ e ^. CompanyFieldBoolValue
-                IsTypedFieldInstanceDayValueFilter op -> op $ e ^. CompanyFieldDayValue
-    
-            ) exprs
-    
-     
-                
 
     return ()
 
@@ -1327,15 +831,12 @@ userGroupContentContentId e = listToMaybe $ catMaybes [
         userGroupContentFileContentId e >>= (return . RestrictedInstanceFileId)
         , userGroupContentUserGroupContentId e >>= (return . RestrictedInstanceUserGroupId)
         , userGroupContentUserContentId e >>= (return . RestrictedInstanceUserId)
-        , userGroupContentCompanyContentId e >>= (return . RestrictedInstanceCompanyId)
 
     ]
 
 class UserGroupContentContentIdField e where
     userGroupContentContentIdField :: SqlExpr (Database.Esqueleto.Value (Maybe (Key e))) -> EntityField UserGroupContent (Maybe (Key e)) 
 
-instance UserGroupContentContentIdField Company where
-    userGroupContentContentIdField _ = UserGroupContentCompanyContentId
 instance UserGroupContentContentIdField User where
     userGroupContentContentIdField _ = UserGroupContentUserContentId
 instance UserGroupContentContentIdField UserGroup where
@@ -1345,10 +846,6 @@ instance UserGroupContentContentIdField File where
     
 
 userGroupContentContentIdExprFromString :: Text -> SqlExpr (Entity UserGroupContent) -> Text -> Maybe Text -> Maybe (SqlExpr (E.Value Bool))
-userGroupContentContentIdExprFromString "Company" e op vt = case vt of 
-    Just vt' -> PP.fromPathPiece vt' >>= \v -> Just $ defaultFilterOp False op (e ^. UserGroupContentCompanyContentId) (val v)
-    Nothing -> Just $ defaultFilterOp False op (e ^. UserGroupContentCompanyContentId) nothing
-   
 userGroupContentContentIdExprFromString "User" e op vt = case vt of 
     Just vt' -> PP.fromPathPiece vt' >>= \v -> Just $ defaultFilterOp False op (e ^. UserGroupContentUserContentId) (val v)
     Nothing -> Just $ defaultFilterOp False op (e ^. UserGroupContentUserContentId) nothing
@@ -1365,7 +862,6 @@ userGroupContentContentIdExprFromString "File" e op vt = case vt of
 userGroupContentContentIdExprFromString _ _ _ _ = Nothing
 
 userGroupContentContentIdExpr2FromString :: Text -> SqlExpr (Entity UserGroupContent) -> Text -> SqlExpr (Entity UserGroupContent) -> Maybe (SqlExpr (E.Value Bool))
-userGroupContentContentIdExpr2FromString "Company" e op e2 = Just $ defaultFilterOp False op (e ^. UserGroupContentCompanyContentId) (e2 ^. UserGroupContentCompanyContentId)
 userGroupContentContentIdExpr2FromString "User" e op e2 = Just $ defaultFilterOp False op (e ^. UserGroupContentUserContentId) (e2 ^. UserGroupContentUserContentId)
 userGroupContentContentIdExpr2FromString "UserGroup" e op e2 = Just $ defaultFilterOp False op (e ^. UserGroupContentUserGroupContentId) (e2 ^. UserGroupContentUserGroupContentId)
 userGroupContentContentIdExpr2FromString "File" e op e2 = Just $ defaultFilterOp False op (e ^. UserGroupContentFileContentId) (e2 ^. UserGroupContentFileContentId)
