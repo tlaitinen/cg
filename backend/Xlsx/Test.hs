@@ -7,6 +7,11 @@ import qualified Data.ByteString.Lazy as L
 import Codec.Xlsx
 import Control.Lens
 import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HM
+import Xlsx.Types
+import Xlsx.Convert
+import Data.Text (Text)
+
 xlsxTestMain :: IO ()
 xlsxTestMain = do
     args <- getArgs
@@ -15,4 +20,5 @@ xlsxTestMain = do
         let sheets = view xlSheets (toXlsx bs)
         forM_ (Map.toList sheets) $ \(name,sheet) -> do
             print name
-            
+            let ds = dataSetFromRows "sheet" name $ toRows (view wsCells sheet)
+            print ds    

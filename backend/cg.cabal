@@ -23,6 +23,8 @@ library
         ghc-options: -Wall -fwarn-tabs -O2
     exposed-modules:
         Xlsx.Test
+        Xlsx.Convert
+        Xlsx.Types
         Application
         Foundation
         Import
@@ -113,7 +115,6 @@ library
         filepath -any,
         mime-mail -any,
         smtp-mail -any,
-        hint -any,
         xlsx -any,
         lens -any
     extensions: TemplateHaskell QuasiQuotes OverloadedStrings
