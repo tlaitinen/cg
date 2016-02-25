@@ -9,8 +9,9 @@ import Control.Lens
 import qualified Data.Map as Map
 import qualified Data.HashMap.Strict as HM
 import Xlsx.Types
-import Xlsx.Convert
 import Data.Text (Text)
+import qualified DB.Ownership as O
+import DB.Shares
 
 xlsxTestMain :: IO ()
 xlsxTestMain = do
@@ -18,7 +19,5 @@ xlsxTestMain = do
     forM_ args $ \path -> do
         bs <- L.readFile path
         let sheets = view xlSheets (toXlsx bs)
-        forM_ (Map.toList sheets) $ \(name,sheet) -> do
-            print name
-            let ds = dataSetFromRows "sheet" name $ toRows (view wsCells sheet)
-            print ds    
+        forM_ (Map.toList sheets) $ \(n,s) -> do
+            print $ O.fromWorkSheet n s

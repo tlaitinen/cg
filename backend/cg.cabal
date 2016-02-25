@@ -23,8 +23,9 @@ library
         ghc-options: -Wall -fwarn-tabs -O2
     exposed-modules:
         Xlsx.Test
-        Xlsx.Convert
         Xlsx.Types
+        DB.Ownership
+        DB.Shares
         Application
         Foundation
         Import

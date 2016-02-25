@@ -1,17 +1,44 @@
+{-# LANGUAGE InstanceSigs #-}
 module Xlsx.Types where
 import Prelude
-import Data.Text (Text)
-import qualified Data.HashMap.Strict as HM
+import Codec.Xlsx
+import Data.Maybe
+import Data.Text
+import Data.Text.Read
 
-type RowMap      = HM.HashMap Int Value
-type ColMap      = HM.HashMap Text Int
-type DataSet     = (ColMap, [RowMap])
+class FromCellValue a where
+    fromCellValue :: Maybe CellValue -> Maybe a
 
-type DataSetName = Text
-type DataSetMap  = HM.HashMap DataSetName DataSet
-type QueryResult = [[Value]]  
+instance FromCellValue Text where
+    fromCellValue :: Maybe CellValue -> Maybe Text
+    fromCellValue v = case v of
+        Just (CellText t) -> Just t
+        _ -> Nothing
 
-data Value = VText Text | VDouble Double | VBool Bool 
-           deriving (Show, Eq, Ord)
+instance FromCellValue Int where
+    fromCellValue :: Maybe CellValue -> Maybe Int
+    fromCellValue v = case v of
+        Just (CellDouble d) -> Just $ round d
+        Just (CellText t) -> case signed decimal t of
+            Right (d,_) -> Just d
+            _ -> Nothing
+        _ -> Nothing
+
+instance FromCellValue Double where
+    fromCellValue :: Maybe CellValue -> Maybe Double
+    fromCellValue v = case v of
+        Just (CellDouble d) -> Just d
+        Just (CellText t) -> case double t of
+            Right (d,_) -> Just d
+            _ -> Nothing
+        _ -> Nothing
+
+instance FromCellValue Bool where
+    fromCellValue :: Maybe CellValue -> Maybe Bool
+    fromCellValue v = case v of
+        Just (CellBool d) -> Just d
+        _ -> Nothing
+
+
 
 
