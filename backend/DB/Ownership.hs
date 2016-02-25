@@ -25,15 +25,15 @@ makeLenses ''OwnershipSheet
 
 fromWorkSheet :: Text -> Worksheet -> OwnershipSheet
 fromWorkSheet sn s = OwnershipSheet {
-    _ticker    = read "" (1,1),
-    _company   = read "" (1,2),
-    _isin      = read "" (1,3),
-    _shareType = case read (""::Text) (1,4) of
+    _ticker      = read "" (1,1),
+    _company     = read "" (1,2),
+    _isin        = read "" (1,3),
+    _shareType   = case read (""::Text) (1,4) of
         "B" -> B
         _   -> A,
     _year        = read sheetYear (2,1),
     _totalShares = read (0::Int) (2,5),
-    _shares = []
+    _shares      = mapMaybe DB.Shares.fromRow $ sheetRows s
 }
     where
         read :: FromCellValue a => a -> (Int,Int) -> a

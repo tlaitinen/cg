@@ -5,6 +5,10 @@ import Codec.Xlsx
 import Data.Maybe
 import Data.Text
 import Data.Text.Read
+import Control.Lens
+
+sheetRows :: Worksheet -> [[CellValue]]
+sheetRows ws = [ catMaybes [ v ^. cellValue | (_,v) <- r ] | (_,r) <- toRows $ ws ^. wsCells ]
 
 class FromCellValue a where
     fromCellValue :: Maybe CellValue -> Maybe a
@@ -40,5 +44,5 @@ instance FromCellValue Bool where
         _ -> Nothing
 
 
-
-
+fromCellValue' :: FromCellValue a => CellValue -> Maybe a
+fromCellValue' = fromCellValue . Just
