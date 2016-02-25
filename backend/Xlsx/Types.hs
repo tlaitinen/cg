@@ -7,8 +7,8 @@ import Data.Text
 import Data.Text.Read
 import Control.Lens
 
-sheetRows :: Worksheet -> [[CellValue]]
-sheetRows ws = [ catMaybes [ v ^. cellValue | (_,v) <- r ] | (_,r) <- toRows $ ws ^. wsCells ]
+sheetRows :: Worksheet -> [[Maybe CellValue]]
+sheetRows ws = [ [ v ^. cellValue | (_,v) <- r ] | (_,r) <- toRows $ ws ^. wsCells ]
 
 class FromCellValue a where
     fromCellValue :: Maybe CellValue -> Maybe a
@@ -41,8 +41,7 @@ instance FromCellValue Bool where
     fromCellValue :: Maybe CellValue -> Maybe Bool
     fromCellValue v = case v of
         Just (CellBool d) -> Just d
+        Just (CellDouble d) -> Just (round d == 1)
         _ -> Nothing
 
 
-fromCellValue' :: FromCellValue a => CellValue -> Maybe a
-fromCellValue' = fromCellValue . Just

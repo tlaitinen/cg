@@ -24,6 +24,7 @@ library
     exposed-modules:
         Xlsx.Test
         Xlsx.Types
+        DB.Board
         DB.Ownership
         DB.Shares
         Application
