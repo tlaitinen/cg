@@ -14,13 +14,11 @@ data Shares = Shares {
     _positionChange  :: Int
 } deriving (Show)
 
-fromRow :: [Maybe CellValue] -> Maybe Shares
-fromRow r = case r of
-    on:st:c:co:_:_:s:p:_ -> Shares <$> (fromCellValue on)
-        <*> fromCellValue st
-        <*> fromCellValue c
-        <*> fromCellValue co
-        <*> fromCellValue s
-        <*> fromCellValue p
-    _ -> Nothing
+fromRow :: RowMap -> Maybe Shares
+fromRow r = Shares <$> (fromRowValue r 1)
+    <*> (fromRowValue r 2)
+    <*> (fromRowValue r 3)
+    <*> (fromRowValue r 4)
+    <*> (fromRowValue r 7)
+    <*> (fromRowValue r 8)
 

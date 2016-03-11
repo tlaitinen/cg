@@ -1,4 +1,5 @@
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE TupleSections #-}
 module Xlsx.Types where
 import Prelude
 import Codec.Xlsx
@@ -6,9 +7,14 @@ import Data.Maybe
 import Data.Text
 import Data.Text.Read
 import Control.Lens
+import qualified Data.Map as Map
 
-sheetRows :: Worksheet -> [[Maybe CellValue]]
-sheetRows ws = [ [ v ^. cellValue | (_,v) <- r ] | (_,r) <- toRows $ ws ^. wsCells ]
+type RowMap = Map.Map Int CellValue
+sheetRows :: Worksheet -> [RowMap]
+sheetRows ws = [ Map.fromList $ catMaybes [ v ^. cellValue >>= Just . (k,) | (k,v) <- r ] | (_,r) <- toRows $ ws ^. wsCells ]
+
+fromRowValue :: FromCellValue a => RowMap -> Int -> Maybe a
+fromRowValue r i = fromCellValue $ Map.lookup i r 
 
 class FromCellValue a where
     fromCellValue :: Maybe CellValue -> Maybe a
@@ -41,7 +47,7 @@ instance FromCellValue Bool where
     fromCellValue :: Maybe CellValue -> Maybe Bool
     fromCellValue v = case v of
         Just (CellBool d) -> Just d
-        Just (CellDouble d) -> Just (round d == 1)
+        Just (CellDouble d) -> Just (round d == (1::Int))
         _ -> Nothing
 
 
